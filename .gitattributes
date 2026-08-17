@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# Normalizacion de texto (primero el comodin, luego los overrides especificos:
+# en git gana la ultima regla que hace match)
+# ---------------------------------------------------------------------------
+* text=auto eol=lf
+
+# ---------------------------------------------------------------------------
+# Git LFS: todo binario de la biblioteca se guarda como puntero de 3 lineas.
+# IMPORTANTE: este archivo debe existir ANTES de commitear cualquier binario.
+# ---------------------------------------------------------------------------
+*.pdf   filter=lfs diff=lfs merge=lfs -text
+*.epub  filter=lfs diff=lfs merge=lfs -text
+*.mobi  filter=lfs diff=lfs merge=lfs -text
+*.azw3  filter=lfs diff=lfs merge=lfs -text
+*.djvu  filter=lfs diff=lfs merge=lfs -text
+*.chm   filter=lfs diff=lfs merge=lfs -text
+*.zip   filter=lfs diff=lfs merge=lfs -text
+*.cbz   filter=lfs diff=lfs merge=lfs -text
+*.cbr   filter=lfs diff=lfs merge=lfs -text
+
+# ---------------------------------------------------------------------------
+# Archivos generados por `npm run build`. GitHub colapsa su diff por defecto,
+# asi que agregar un libro se lee como un diff chico en catalog/books.json
+# y no como cientos de lineas de indices regenerados.
+# ---------------------------------------------------------------------------
+CATALOG.md     linguist-generated=true
+indices/*.md   linguist-generated=true

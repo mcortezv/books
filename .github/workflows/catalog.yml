@@ -1,0 +1,35 @@
+name: catalog
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # lfs: false (el default) descarga solo los punteros. Materializar los
+      # binarios aqui consumiria la cuota de ancho de banda de LFS en cada push,
+      # y check.mjs no los necesita: valida metadata y punteros.
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Sin `npm ci`: el proyecto no tiene dependencias.
+      - name: Validar catalogo e integridad LFS
+        run: npm run check
+
+      - name: Verificar que los indices esten al dia
+        run: |
+          npm run build
+          if ! git diff --quiet; then
+            echo "::error::Los indices generados no coinciden con catalog/books.json."
+            echo "Corre 'npm run build' y commitea el resultado."
+            git diff --stat
+            exit 1
+          fi

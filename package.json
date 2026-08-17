@@ -1,0 +1,18 @@
+{
+  "name": "books",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Biblioteca personal de libros y papers de programacion",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "add": "node scripts/add.mjs",
+    "search": "node scripts/search.mjs",
+    "build": "node scripts/build-index.mjs",
+    "check": "node scripts/check.mjs",
+    "install-hooks": "node scripts/install-hooks.mjs",
+    "test": "node scripts/check.mjs"
+  }
+}
