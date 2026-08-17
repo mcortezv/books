@@ -1,4 +1,4 @@
-# Biblioteca
+# Libros Dev
 
 Archivo personal de libros y papers de programación. Los binarios viven en el
 repo versionados con Git LFS; el catálogo, los índices y el buscador se generan
