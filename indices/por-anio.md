@@ -1,7 +1,9 @@
-# Índice por año
-
 <!-- Generado por `npm run build`. No editar a mano: los cambios se pierden. Fuente: catalog/books.json -->
 
-[volver al catálogo](../CATALOG.md)
+# Por año
 
-_Sin entradas todavía._
+
+
+[Catálogo](../CATALOG.md) · [Por autor](por-autor.md) · [Por tema](por-tema.md)
+
+Sin entradas todavía.

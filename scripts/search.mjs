@@ -9,30 +9,33 @@
 //   npm run search -- --tag rust --paths
 
 import { parseArgs } from 'node:util';
-import { loadCatalog, loadTags, normalizeText, formatBytes } from './lib/catalog.mjs';
+import { loadCatalog, loadTags, normalizeText, formatBytes, plural } from './lib/catalog.mjs';
 
 const USAGE = `
-Uso: npm run search -- [terminos...] [opciones]
+  Uso   npm run search -- [terminos...] [opciones]
 
-Opciones:
-  --author <texto>   Filtra por autor (repetible, acumulativo con AND)
-  --tag <tag>        Filtra por tema (repetible, acepta alias como "js")
-  --type <tipo>      book | paper | thesis | spec
-  --status <estado>  unread | reading | read | reference
-  --lang <idioma>    en | es | ...
-  --year <rango>     2020 | 2019..2024 | ..2010 | 2015..
-  --limit <n>        Maximo de resultados (default: todos)
-  --paths            Imprime solo las rutas (para git lfs pull --include=)
-  --json             Salida JSON
-  --tags             Lista los temas disponibles y sale
-  --all              Lista todo el catalogo
-  -h, --help         Esta ayuda
+  Filtros
+    --author <texto>    Por autor (repetible, acumulativo con AND)
+    --tag <tag>         Por tema (repetible, acepta alias como "js")
+    --type <tipo>       book | paper | thesis | spec
+    --status <estado>   unread | reading | read | reference
+    --lang <idioma>     en | es | ...
+    --year <rango>      2020 | 2019..2024 | ..2010 | 2015..
 
-Ejemplos:
-  npm run search -- clean code
-  npm run search -- --author "martin fowler" --tag refactoring
-  npm run search -- --tag rust --paths
-`.trim();
+  Salida
+    --long              Vista detallada: rutas, editorial, notas, ISBN
+    --paths             Solo las rutas, para git lfs pull --include=
+    --json              JSON
+    --limit <n>         Maximo de resultados
+    --all               Todo el catalogo
+    --tags              Lista los temas disponibles
+    -h, --help          Esta ayuda
+
+  Ejemplos
+    npm run search -- clean code
+    npm run search -- --author "martin fowler" --tag refactoring
+    npm run search -- --tag rust --paths
+`.replace(/^\n/, '').trimEnd();
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -44,6 +47,7 @@ const { values, positionals } = parseArgs({
     lang: { type: 'string' },
     year: { type: 'string' },
     limit: { type: 'string' },
+    long: { type: 'boolean', short: 'l', default: false },
     paths: { type: 'boolean', default: false },
     json: { type: 'boolean', default: false },
     tags: { type: 'boolean', default: false },
@@ -65,10 +69,16 @@ if (values.tags) {
   for (const entry of catalog) {
     for (const tag of entry.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
   }
-  for (const tag of tags.list()) {
+  const all = tags.list();
+  const width = Math.max(...all.map((t) => t.length));
+  const soft = process.stdout.isTTY && !process.env.NO_COLOR ? (s) => `\x1b[2m${s}\x1b[0m` : (s) => s;
+
+  console.log('');
+  for (const tag of all) {
     const n = counts.get(tag) ?? 0;
-    console.log(`${tag.padEnd(24)} ${String(n).padStart(4)}  ${tags.label(tag)}`);
+    console.log(`  ${tag.padEnd(width)}   ${String(n).padStart(3)}   ${soft(tags.label(tag))}`);
   }
+  console.log(soft(`\n  ${all.length} temas definidos en catalog/tags.json\n`));
   process.exit(0);
 }
 
@@ -165,7 +175,7 @@ const hasQuery = terms.length > 0 || wantedTags.length > 0 || wantedAuthors.leng
 
 if (!hasQuery && !values.all) {
   console.log(USAGE);
-  console.log(`\n(${catalog.length} titulos en el catalogo. Usa --all para listarlos todos.)`);
+  console.log(`\n  ${plural(catalog.length, 'título')} en el catálogo. Usa --all para listarlos.\n`);
   process.exit(0);
 }
 
@@ -186,7 +196,7 @@ if (values.limit) results = results.slice(0, Number(values.limit));
 
 if (results.length === 0) {
   if (values.json) console.log('[]');
-  else if (!values.paths) console.error('Sin resultados.');
+  else if (!values.paths) console.error('\n  Sin resultados.\n');
   process.exit(1);
 }
 
@@ -200,48 +210,88 @@ if (values.paths) {
   process.exit(0);
 }
 
-// --- tabla --------------------------------------------------------------
+// --- presentacion -------------------------------------------------------
 
-const color = process.stdout.isTTY && !process.env.NO_COLOR;
-const bold = (s) => (color ? `\x1b[1m${s}\x1b[0m` : s);
-const dim = (s) => (color ? `\x1b[2m${s}\x1b[0m` : s);
+const styled = process.stdout.isTTY && !process.env.NO_COLOR;
+const dim = (s) => (styled ? `\x1b[2m${s}\x1b[0m` : s);
+const bold = (s) => (styled ? `\x1b[1m${s}\x1b[0m` : s);
 
-const ICON = { book: 'LIB', paper: 'PAP', thesis: 'TES', spec: 'SPE' };
+const TYPE_LABEL = { book: 'libro', paper: 'paper', thesis: 'tesis', spec: 'spec' };
 
 function truncate(text, max) {
   const s = String(text ?? '');
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }
 
-const rows = results.map(({ entry }) => ({
-  type: ICON[entry.type] ?? '???',
-  title: truncate(entry.title, 44),
-  authors: truncate((entry.authors ?? []).join(', '), 28),
-  year: entry.year ?? '—',
-  tags: truncate((entry.tags ?? []).join(' '), 30),
-  file: entry.file,
-}));
+const totalSize = results.reduce((sum, { entry }) => sum + (entry.size ?? 0), 0);
+const footer = `${plural(results.length, 'resultado')} · ${formatBytes(totalSize)}`;
 
-const width = (key, header) => Math.max(header.length, ...rows.map((r) => String(r[key]).length));
-const w = {
-  type: width('type', 'TIPO'),
-  title: width('title', 'TITULO'),
-  authors: width('authors', 'AUTORES'),
-  year: width('year', 'ANIO'),
-  tags: width('tags', 'TEMAS'),
-};
+// Vista detallada: un registro por titulo, con todos los campos que tenga.
+if (values.long) {
+  console.log('');
+  for (const { entry } of results) {
+    const meta = [
+      TYPE_LABEL[entry.type] ?? entry.type,
+      entry.publisher,
+      entry.edition,
+      entry.language,
+      entry.status,
+      entry.rating ? `${entry.rating}/5` : null,
+      entry.size ? formatBytes(entry.size) : null,
+    ].filter(Boolean).join(' · ');
 
-console.log(bold(
-  `${'TIPO'.padEnd(w.type)}  ${'TITULO'.padEnd(w.title)}  ${'AUTORES'.padEnd(w.authors)}  ${'ANIO'.padEnd(w.year)}  ${'TEMAS'.padEnd(w.tags)}`,
-));
-
-for (const r of rows) {
-  console.log(
-    `${dim(String(r.type).padEnd(w.type))}  ${String(r.title).padEnd(w.title)}  `
-    + `${dim(String(r.authors).padEnd(w.authors))}  ${String(r.year).padEnd(w.year)}  ${dim(String(r.tags).padEnd(w.tags))}`,
-  );
-  console.log(`  ${dim(r.file)}`);
+    console.log(`  ${bold(entry.title)}${entry.year ? dim(`  ${entry.year}`) : ''}`);
+    if (entry.subtitle) console.log(`  ${dim(entry.subtitle)}`);
+    console.log(`  ${(entry.authors ?? []).join(', ')}`);
+    console.log(`  ${dim(meta)}`);
+    if ((entry.tags ?? []).length > 0) console.log(`  ${dim((entry.tags).join(' · '))}`);
+    if (entry.notes) console.log(`  ${dim(entry.notes)}`);
+    if (entry.url) console.log(`  ${dim(entry.url)}`);
+    console.log(`  ${dim(entry.file ?? 'sin archivo')}`);
+    console.log('');
+  }
+  console.log(dim(`  ${footer}\n`));
+  process.exit(0);
 }
 
-const totalSize = results.reduce((sum, { entry }) => sum + (entry.size ?? 0), 0);
-console.log(dim(`\n${results.length} resultado${results.length === 1 ? '' : 's'} · ${formatBytes(totalSize)}`));
+// Vista compacta por defecto: tabla alineada, sin rutas (usa --long o --paths).
+const rows = results.map(({ entry }) => ({
+  title: truncate(entry.title, 46),
+  authors: truncate((entry.authors ?? []).join(', '), 26),
+  year: entry.year ?? '—',
+  tags: truncate((entry.tags ?? []).join(', '), 32),
+}));
+
+const COLUMNS = [
+  ['title', 'título'],
+  ['authors', 'autores'],
+  ['year', 'año'],
+  ['tags', 'temas'],
+];
+
+const w = Object.fromEntries(COLUMNS.map(([key, label]) => [
+  key, Math.max(label.length, ...rows.map((r) => String(r[key]).length)),
+]));
+
+const line = (parts) => `  ${parts.join('   ')}`.trimEnd();
+
+// La regla se acota al contenido real y al ancho de la terminal, para que no
+// sobresalga de la tabla ni se parta en dos en ventanas angostas.
+const contentWidth = Math.max(...rows.map((r) => (
+  COLUMNS.reduce((sum, [key]) => sum + Math.max(w[key], String(r[key]).length), 0)
+  + (COLUMNS.length - 1) * 3
+)));
+const ruleWidth = Math.min(contentWidth, (process.stdout.columns || 100) - 4);
+
+console.log('');
+console.log(dim(line(COLUMNS.map(([key, label]) => label.padEnd(w[key])))));
+console.log(dim(`  ${'─'.repeat(Math.max(20, ruleWidth))}`));
+for (const r of rows) {
+  console.log(line([
+    String(r.title).padEnd(w.title),
+    dim(String(r.authors).padEnd(w.authors)),
+    String(r.year).padStart(w.year),
+    dim(String(r.tags)),
+  ]));
+}
+console.log(dim(`\n  ${footer}${results.length > 0 ? ' · --long para ver rutas y detalles' : ''}\n`));

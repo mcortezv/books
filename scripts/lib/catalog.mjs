@@ -42,6 +42,17 @@ export function slugify(value) {
     .slice(0, 80);
 }
 
+/** Replica el anchor que GitHub genera para un encabezado. A diferencia de
+ *  slugify, CONSERVA los acentos: GitHub convierte "## Programación funcional"
+ *  en "#programación-funcional", asi que quitarlos rompe el link. */
+export function githubAnchor(heading) {
+  return String(heading ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
 /** "Robert C. Martin" -> "martin robert c", para ordenar por apellido. */
 export function surnameKey(author) {
   const parts = normalizeText(author).trim().split(/\s+/);
@@ -56,6 +67,11 @@ export function formatBytes(bytes) {
   let n = bytes;
   while (n >= 1024 && i < units.length - 1) { n /= 1024; i += 1; }
   return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${units[i]}`;
+}
+
+/** Pluraliza en español: plural(1, 'título') -> "1 título". */
+export function plural(count, singular, pluralForm = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
 // --- tags ---------------------------------------------------------------

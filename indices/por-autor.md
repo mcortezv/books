@@ -1,7 +1,9 @@
-# Índice por autor
-
 <!-- Generado por `npm run build`. No editar a mano: los cambios se pierden. Fuente: catalog/books.json -->
 
-0 autores · [volver al catálogo](../CATALOG.md)
+# Por autor
 
-_Sin entradas todavía._
+0 autores
+
+[Catálogo](../CATALOG.md) · [Por tema](por-tema.md) · [Por año](por-anio.md)
+
+Sin entradas todavía.

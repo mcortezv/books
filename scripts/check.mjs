@@ -120,28 +120,55 @@ const catalogSize = fs.existsSync(`${ROOT}/catalog/books.json`)
 
 // --- reporte ------------------------------------------------------------
 
-const bold = process.stdout.isTTY && !process.env.NO_COLOR ? (s) => `\x1b[1m${s}\x1b[0m` : (s) => s;
+const styled = process.stdout.isTTY && !process.env.NO_COLOR;
+const dim = (s) => (styled ? `\x1b[2m${s}\x1b[0m` : s);
+const bold = (s) => (styled ? `\x1b[1m${s}\x1b[0m` : s);
 
-console.log(bold('Verificación del catálogo'));
-console.log(`  entradas          ${catalog.length}`);
-console.log(`  archivos library/ ${listLibraryFiles().length}`);
-console.log(`  peso catalogado   ${formatBytes(catalog.reduce((s, e) => s + (e.size ?? 0), 0))}`);
-console.log(`  books.json        ${formatBytes(catalogSize)}`);
-console.log(`  LFS verificado    ${lfsChecked ? 'sí' : 'no (sin archivos trackeados todavía)'}`);
+const stats = [
+  ['entradas', String(catalog.length)],
+  ['archivos en library/', String(listLibraryFiles().length)],
+  ['peso catalogado', formatBytes(catalog.reduce((s, e) => s + (e.size ?? 0), 0))],
+  ['catalog/books.json', formatBytes(catalogSize)],
+  ['integridad LFS', lfsChecked ? 'verificada' : 'sin archivos trackeados todavía'],
+];
 if (pointersNotPulled > 0) {
-  console.log(`  punteros sin bajar ${pointersNotPulled} (usa \`git lfs pull\` si los necesitas)`);
+  stats.push(['punteros sin descargar', `${pointersNotPulled} · usa git lfs pull`]);
+}
+
+const labelWidth = Math.max(...stats.map(([label]) => label.length));
+
+console.log('');
+for (const [label, value] of stats) {
+  console.log(`  ${dim(label.padEnd(labelWidth))}   ${value}`);
+}
+
+/** Envuelve mensajes largos manteniendo la sangria del bloque. */
+function wrap(text, indent) {
+  const width = Math.max(40, (process.stdout.columns || 100) - indent.length - 2);
+  const lines = [];
+  let current = '';
+  for (const word of String(text).split(/\s+/)) {
+    if (current && `${current} ${word}`.length > width) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = current ? `${current} ${word}` : word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.map((l, i) => (i === 0 ? `${indent}${l}` : `${indent}  ${l}`)).join('\n');
 }
 
 if (warnings.length > 0) {
-  console.log(`\n${bold(`Avisos (${warnings.length}):`)}`);
-  for (const w of warnings) console.log(`  ! ${w}`);
+  console.log(`\n  ${bold(`Avisos (${warnings.length})`)}\n`);
+  for (const w of warnings) console.log(dim(wrap(w, '    ')));
 }
 
 if (errors.length > 0) {
-  console.log(`\n${bold(`Errores (${errors.length}):`)}`);
-  for (const e of errors) console.log(`  x ${e}`);
-  console.log('\nFalló la verificación.');
+  console.log(`\n  ${bold(`Errores (${errors.length})`)}\n`);
+  for (const e of errors) console.log(wrap(e, '    '));
+  console.log(`\n  ${bold('Falló la verificación.')}\n`);
   process.exit(1);
 }
 
-console.log(`\nTodo correcto.${warnings.length > 0 ? ' (con avisos)' : ''}`);
+console.log(`\n  ${bold('Todo correcto.')}${warnings.length > 0 ? dim(' Revisa los avisos de arriba.') : ''}\n`);

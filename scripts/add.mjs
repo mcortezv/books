@@ -40,7 +40,7 @@ async function askChoice(question, options, fallback) {
   while (true) {
     const answer = await ask(`${question} (${options.join(' / ')})`, fallback);
     if (options.includes(answer)) return answer;
-    console.log(`  ! Opción inválida. Elige una de: ${options.join(', ')}`);
+    console.log(`  Opción inválida. Elige una de: ${options.join(', ')}`);
   }
 }
 
@@ -54,7 +54,7 @@ async function askTags() {
     }
     const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
     if (parts.length === 0) {
-      console.log('  ! Necesitas al menos un tema.');
+      console.log('  Necesitas al menos un tema.');
       continue;
     }
     const resolved = [];
@@ -65,7 +65,7 @@ async function askTags() {
       else if (!resolved.includes(canonical)) resolved.push(canonical);
     }
     if (unknown.length > 0) {
-      console.log(`  ! Temas desconocidos: ${unknown.join(', ')}`);
+      console.log(`  Temas desconocidos: ${unknown.join(', ')}`);
       console.log('    Agrégalos a catalog/tags.json o escribe "?" para ver los disponibles.');
       continue;
     }
@@ -169,7 +169,7 @@ try {
       }
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.renameSync(sourcePath, target);
-      console.log(`\n  → movido a ${relativeFile}`);
+      console.log(`\n  Movido a ${relativeFile}`);
     }
     size = fs.statSync(target).size;
   }
@@ -200,7 +200,7 @@ try {
   const problems = validateEntry(entry, tags, catalog.length);
   if (problems.length > 0) {
     console.error('\nLa entrada no es válida:');
-    for (const p of problems) console.error(`  x ${p}`);
+    for (const p of problems) console.error(`    ${p}`);
     process.exit(1);
   }
 

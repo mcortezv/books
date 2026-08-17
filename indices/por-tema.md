@@ -1,7 +1,9 @@
-# Índice por tema
-
 <!-- Generado por `npm run build`. No editar a mano: los cambios se pierden. Fuente: catalog/books.json -->
 
-0 temas · [volver al catálogo](../CATALOG.md)
+# Por tema
 
-_Sin entradas todavía._
+0 temas
+
+[Catálogo](../CATALOG.md) · [Por autor](por-autor.md) · [Por año](por-anio.md)
+
+Sin entradas todavía.
